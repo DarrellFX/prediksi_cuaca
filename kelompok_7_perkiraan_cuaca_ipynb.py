@@ -11,6 +11,7 @@ st.set_page_config(page_title="Prediksi Cuaca", page_icon="🌤️")
 def latih_model():
     try:
         df = pd.read_csv('cuaca_kemayoran_bmkg_1997_2023.csv', sep=';')
+        return None
 
     cols_numeric = [
         'Temperatur minimum(°C)', 'Temperatur maksimum(°C)',
