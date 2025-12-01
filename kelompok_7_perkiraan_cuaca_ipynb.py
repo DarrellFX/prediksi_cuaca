@@ -18,9 +18,6 @@ PROJECT DATA ANALISIS GROUP
 * Sumber Data = dataonline.bmkg.go.id
 """
 
-from google.colab import drive
-drive.mount('/content/drive')
-
 """# Library yang digunakan"""
 
 import pandas as pd
@@ -33,7 +30,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 
 """#Data preparation"""
 
-df = pd.read_csv('/content/drive/MyDrive/[Revisi] Project Datnal/cuaca_kemayoran_bmkg_1997_2023.csv', sep=';')
+df = pd.read_csv('"C:/Kuliah/Semester 3/(Datnal) Data Analyst/W13/[Unguided]_Benedictus_Darrell_Sunanto_Arup_00000118095_Data_Analyst_W13/cuaca_kemayoran_bmkg_1997_2023.csv"', sep=';')
 df.head()
 
 df.tail()
