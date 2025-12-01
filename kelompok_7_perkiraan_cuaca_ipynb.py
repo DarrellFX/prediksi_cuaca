@@ -5,21 +5,13 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-# --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Prediksi Cuaca", page_icon="🌤️")
 
-# --- 1. LOAD DATA & LATIH MODEL ---
 @st.cache_resource
 def latih_model():
-    # PERBAIKAN: Menggunakan nama file langsung, bukan path C:/...
     try:
-        # Pastikan nama file di dalam tanda kutip SAMA PERSIS dengan nama file di GitHub Anda
         df = pd.read_csv('cuaca_kemayoran_bmkg_1997_2023.csv', sep=';')
-    except FileNotFoundError:
-        st.error("❌ File CSV tidak ditemukan! Pastikan file 'cuaca_kemayoran_bmkg_1997_2023.csv' ada di GitHub sejajar dengan file script ini.")
-        return None
 
-    # --- CLEANING DATA ---
     cols_numeric = [
         'Temperatur minimum(°C)', 'Temperatur maksimum(°C)',
         'Temperatur ratarata(°C)', 'Kelembapan ratarata(%)',
@@ -38,7 +30,6 @@ def latih_model():
     df[cols_numeric] = df[cols_numeric].interpolate(method='linear')
     df = df.dropna().reset_index(drop=True)
 
-    # --- FEATURE ENGINEERING ---
     df['Bulan'] = df['TANGGAL'].dt.month
     df['Bulan_Sin'] = np.sin(2 * np.pi * df['Bulan']/12)
     df['Bulan_Cos'] = np.cos(2 * np.pi * df['Bulan']/12)
@@ -53,7 +44,6 @@ def latih_model():
     df['Rata2_Lembap_7Hari'] = df['Kelembapan ratarata(%)'].shift(1).rolling(7).mean()
     df['Rata2_Angin_3Hari'] = df['Kecepatan angin maksimum(m/s)'].shift(1).rolling(3).mean()
 
-    # Target
     df['Target_Suhu_Maks'] = df['Temperatur maksimum(°C)'].shift(-1)
     df['Target_Status_Hujan'] = (df['Curah hujan(mm)'].shift(-1) > 1.0).astype(int)
     df['Target_Hujan_Amount'] = df['Curah hujan(mm)'].shift(-1)
@@ -62,15 +52,12 @@ def latih_model():
 
     df_model = df.dropna().reset_index(drop=True)
 
-    # --- TRAINING PROSES ---
-    # 1. Model Suhu
     feats_suhu = ['Suhu_Maks_Kemarin', 'Rata2_Suhu_Maks_7Hari', 'Lembap_Kemarin', 'Hujan_Kemarin', 'Bulan_Sin', 'Bulan_Cos']
     scaler_suhu = StandardScaler()
     X_suhu_scaled = scaler_suhu.fit_transform(df_model[feats_suhu])
     rf_suhu = RandomForestRegressor(n_estimators=50, max_depth=10, random_state=42, n_jobs=-1)
     rf_suhu.fit(X_suhu_scaled, df_model['Target_Suhu_Maks'])
 
-    # 2. Model Hujan (Klasifikasi & Regresi)
     feats_hujan = ['Hujan_Kemarin', 'Rata2_Hujan_7Hari', 'Lembap_Kemarin', 'Suhu_Maks_Kemarin', 'Bulan_Sin', 'Bulan_Cos']
     scaler_hujan = StandardScaler()
     scaler_hujan.fit(df_model[feats_hujan]) 
@@ -82,14 +69,12 @@ def latih_model():
     rf_amt_hujan_model = RandomForestRegressor(n_estimators=50, max_depth=5, random_state=42, n_jobs=-1)
     rf_amt_hujan_model.fit(df_model.loc[mask_rain, feats_hujan], df_model.loc[mask_rain, 'Target_Hujan_Amount'])
 
-    # 3. Model Kelembapan
     feats_hum = ['Lembap_Kemarin', 'Rata2_Lembap_7Hari', 'Hujan_Kemarin', 'Suhu_Maks_Kemarin', 'Bulan_Sin', 'Bulan_Cos']
     scaler_hum = StandardScaler()
     X_hum_scaled = scaler_hum.fit_transform(df_model[feats_hum])
     rf_hum = RandomForestRegressor(n_estimators=50, max_depth=10, random_state=42, n_jobs=-1)
     rf_hum.fit(X_hum_scaled, df_model['Target_Lembap'])
 
-    # 4. Model Angin
     feats_wind = ['Angin_Kemarin', 'Rata2_Angin_3Hari', 'Suhu_Maks_Kemarin', 'Hujan_Kemarin', 'Bulan_Sin', 'Bulan_Cos']
     scaler_wind = StandardScaler()
     X_wind_scaled = scaler_wind.fit_transform(df_model[feats_wind])
@@ -101,18 +86,15 @@ def latih_model():
            (rf_hum, scaler_hum, feats_hum), \
            (rf_wind, scaler_wind, feats_wind)
 
-# --- 2. TAMPILAN WEB (STREAMLIT) ---
 st.title("🌤️ Dashboard Prediksi Cuaca")
 st.write("Aplikasi ini memprediksi cuaca besok berdasarkan data hari ini.")
 
-# Load Model
 with st.spinner('Sedang memuat model data...'):
     models = latih_model()
 
 if models:
     (m_suhu, sc_suhu, f_suhu), (m_cls_hujan, m_reg_hujan, sc_hujan, f_hujan), (m_hum, sc_hum, f_hum), (m_wind, sc_wind, f_wind) = models
 
-    # --- INPUT USER ---
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("1. Data Hari Ini")
@@ -130,27 +112,22 @@ if models:
         avg_lembap_7 = st.number_input("Rata2 Lembap (7 hari lalu)", value=lembap_kemarin)
         avg_angin_3 = st.number_input("Rata2 Angin (3 hari lalu)", value=angin_kemarin)
 
-    # --- TOMBOL PREDIKSI ---
     if st.button("🔍 Mulai Prediksi", type="primary"):
-        # Hitung Fitur Waktu
+
         date_obj = pd.to_datetime(tgl_besok)
         bulan = date_obj.month
         bulan_sin = np.sin(2 * np.pi * bulan/12)
         bulan_cos = np.cos(2 * np.pi * bulan/12)
 
-        # 1. Prediksi Suhu
         input_suhu = pd.DataFrame([[suhu_kemarin, avg_suhu_7, lembap_kemarin, hujan_kemarin, bulan_sin, bulan_cos]], columns=f_suhu)
         pred_suhu_val = m_suhu.predict(sc_suhu.transform(input_suhu))[0]
 
-        # 2. Prediksi Kelembapan
         input_hum = pd.DataFrame([[lembap_kemarin, avg_lembap_7, hujan_kemarin, suhu_kemarin, bulan_sin, bulan_cos]], columns=f_hum)
         pred_hum_val = m_hum.predict(sc_hum.transform(input_hum))[0]
 
-        # 3. Prediksi Angin
         input_wind = pd.DataFrame([[angin_kemarin, avg_angin_3, suhu_kemarin, hujan_kemarin, bulan_sin, bulan_cos]], columns=f_wind)
         pred_wind_val = m_wind.predict(sc_wind.transform(input_wind))[0]
 
-        # 4. Prediksi Hujan
         input_hujan = pd.DataFrame([[hujan_kemarin, avg_hujan_7, lembap_kemarin, suhu_kemarin, bulan_sin, bulan_cos]], columns=f_hujan)
         prob_hujan = m_cls_hujan.predict_proba(input_hujan)[0][1]
         
@@ -158,7 +135,6 @@ if models:
         raw_rain_amt = m_reg_hujan.predict(input_hujan)[0]
         final_rain_amt = raw_rain_amt if prob_hujan > 0.4 else 0.0
 
-        # --- TAMPILKAN HASIL ---
         st.success("Prediksi Selesai!")
         st.header(f"📅 Prediksi: {tgl_besok.strftime('%d-%m-%Y')}")
         
