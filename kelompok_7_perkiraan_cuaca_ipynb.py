@@ -11,7 +11,7 @@ st.set_page_config(page_title="Prediksi Cuaca", page_icon="🌤️")
 def latih_model():
     try:
         df = pd.read_csv('cuaca_kemayoran_bmkg_1997_2023.csv', sep=';')
-        except FileNotFoundError:
+    except FileNotFoundError:
         st.error("❌ File CSV tidak ditemukan! Pastikan file 'cuaca_kemayoran_bmkg_1997_2023.csv' ada di GitHub sejajar dengan file script ini.")
         return None
 
